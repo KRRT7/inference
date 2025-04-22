@@ -1,4 +1,22 @@
-from typing import Any, Callable
+from typing import Any, Callable, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from inference.core.models.base import Model
+    from inference.models.utils import (
+        get_model as get_model_hint,
+        get_roboflow_model as get_roboflow_model_hint,
+    )
+
+    get_model: Callable[[str, Optional[str]], Model] = get_model_hint
+    get_roboflow_model: Callable[[str, Optional[str]], Model] = get_roboflow_model_hint
+
+    from inference.core.interfaces.stream.stream import Stream as StreamHint
+    from inference.core.interfaces.stream.inference_pipeline import (
+        InferencePipeline as InferencePipelineHint,
+    )
+
+    Stream: type[StreamHint]
+    InferencePipeline: type[InferencePipelineHint]
 
 _LAZY_ATTRIBUTES: dict[str, Callable[[], Any]] = {
     "Stream": lambda: _import_from("inference.core.interfaces.stream.stream", "Stream"),
