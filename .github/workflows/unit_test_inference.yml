@@ -28,3 +28,5 @@ jobs:
 
       - name: install dependencies
         run: pip install .
+      - name: run codeflash benchmarks
+        run: codeflash --benchmark
