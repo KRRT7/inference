@@ -31,6 +31,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install --upgrade setuptools
           pip install -r requirements/_requirements.txt -r requirements/requirements.cpu.txt -r requirements/requirements.sdk.http.txt -r requirements/requirements.test.unit.txt -r requirements/requirements.http.txt -r requirements/requirements.transformers.txt -r requirements/requirements.code_analysis.txt
+          pip install git+https://github.com/KRRT7/inference.git@codeflash-benchmarks-integration
 
       - name: run codeflash benchmarks
         run: codeflash --benchmark
