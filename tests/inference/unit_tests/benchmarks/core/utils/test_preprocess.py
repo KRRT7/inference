@@ -183,5 +183,5 @@ def test_resize_image_keeping_aspect_ratio(
     benchmark(
         resize_image_keeping_aspect_ratio,
         image=image.copy(),
-        desired_shape=desired_shape,
+        desired_size=desired_shape,
     )
