@@ -8,25 +8,27 @@ on:
 
 jobs:
   unit-tests:
-    continue-on-error: true
     runs-on: ubuntu-latest
+    env:
+        CODEFLASH_API_KEY: ${{ secrets.CODEFLASH_API_KEY }}
+
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install uv
+      - name: Set up Python 3.11 for CLI
         uses: astral-sh/setup-uv@v5
         with:
-          python-version: 
-          version: "0.5.30"
-      - name: setup python
-        uses: actions/setup-python@v5
-        with:
-          python-version: 3.12
+          python-version: 3.11.6
 
-      - name: install dependencies
-        run: pip install .
+      - name: Install dependencies (CLI)
+        run: |
+          uv venv
+          source .venv/bin/activate
+          uv pip install -r requirements/_requirements.txt -r requirements/requirements.cpu.txt -r requirements/requirements.sdk.http.txt -r requirements/requirements.test.unit.txt -r requirements/requirements.http.txt -r requirements/requirements.transformers.txt -r requirements/requirements.code_analysis.txt -r requirements/requirements.cli.txt
+          uv pip install git+https://github.com/codeflash-ai/codeflash.git@roboflow-benchmarking-WIP
+
       - name: run codeflash benchmarks
         run: codeflash --benchmark

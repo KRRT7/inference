@@ -1,4 +1,4 @@
 black==24.3.0
 isort==5.13.2
 flake8==7.0.0
-codeflash @ git+https://github.com/KRRT7/inference.git@codeflash-benchmarks-integration
+# codeflash @ git+https://github.com/KRRT7/inference.git@codeflash-benchmarks-integration

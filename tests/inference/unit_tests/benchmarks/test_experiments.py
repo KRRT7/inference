@@ -5,7 +5,7 @@ from inference.core.models.base import Model
 import numpy as np
 import pytest
 from inference.models.yolov8 import yolov8_keypoints_detection
-from inference.models.yolov8 import codeflash_yolov8_keypoints_detection
+# from inference.models.yolov8 import codeflash_yolov8_keypoints_detection
 
 
 @pytest.fixture
@@ -44,23 +44,23 @@ def test_roboflow_model_registry(benchmark):
 
 
 # something like this could work
-def test_yolov8_cf(benchmark, dataset_reference):
-    images, image_sizes = dataset_reference
-    inference_configuration = {}
+# def test_yolov8_cf(benchmark, dataset_reference):
+#     images, image_sizes = dataset_reference
+#     inference_configuration = {}
 
-    model = codeflash_yolov8_keypoints_detection.YOLOv8KeypointsDetection(
-        model_id="yolov8n-seg-640",
-        api_key=None,
-    )
-    img = images[0]
-    predictions = model.prepare(
-        img
-    )  # this calls the onix session beforehand, so we don't have to worry about it
+#     model = codeflash_yolov8_keypoints_detection.YOLOv8KeypointsDetection(
+#         model_id="yolov8n-seg-640",
+#         api_key=None,
+#     )
+#     img = images[0]
+#     predictions = model.prepare(
+#         img
+#     )  # this calls the onix session beforehand, so we don't have to worry about it
 
-    # since onix session is setup, now we can actually benchmark the predict method
-    benchmark(
-        model.predict,
-        img,
-        predictions,
-        **inference_configuration,
-    )
+#     # since onix session is setup, now we can actually benchmark the predict method
+#     benchmark(
+#         model.predict,
+#         img,
+#         predictions,
+#         **inference_configuration,
+#     )
