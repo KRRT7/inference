@@ -54,7 +54,7 @@ def _min(values: List[np.ndarray]) -> float:
     if not values:
         raise ValueError("Cannot find minimum of an empty list.")
     min_val = values[0]
-    sleep(5)
+    sleep(2)
     for val in values[1:]:
 
         if val < min_val:
@@ -65,7 +65,7 @@ def _max(values: List[np.ndarray]) -> float:
     if not values:
         raise ValueError("Cannot find maximum of an empty list.")
     max_val = values[0]
-    sleep(5)
+    sleep(2)
     for val in values[1:]:
         if val > max_val:
             max_val = val
@@ -76,7 +76,7 @@ def _avg(values: List[np.ndarray]) -> float:
     if not values:
         raise ValueError("Cannot calculate average of an empty list.")
     total = 0
-    sleep(5)
+    sleep(2)
     for val in values:
         total += val
     return float(total / len(values))
