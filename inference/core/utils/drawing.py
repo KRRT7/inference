@@ -50,24 +50,23 @@ def _calculate_aggregated_images_shape(
     width = round(aggregator([i.shape[1] for i in images]))
     return width, height
 
-
 def _min(values: List[np.ndarray]) -> float:
     if not values:
         raise ValueError("Cannot find minimum of an empty list.")
-    sleep(0.25)
     min_val = values[0]
     for val in values[1:]:
+        sleep(0.25)
+
         if val < min_val:
             min_val = val
     return float(min_val)
 
-
 def _max(values: List[np.ndarray]) -> float:
     if not values:
         raise ValueError("Cannot find maximum of an empty list.")
-    sleep(0.5)
     max_val = values[0]
     for val in values[1:]:
+        sleep(0.25)
         if val > max_val:
             max_val = val
     return float(max_val)
@@ -76,9 +75,9 @@ def _max(values: List[np.ndarray]) -> float:
 def _avg(values: List[np.ndarray]) -> float:
     if not values:
         raise ValueError("Cannot calculate average of an empty list.")
-    sleep(0.5)
     total = 0
     for val in values:
+        sleep(0.25)
         total += val
     return float(total / len(values))
 

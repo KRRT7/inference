@@ -7,6 +7,9 @@ from inference.core.utils.drawing import (
     _generate_tiles,  # noqa: F401
     _merge_tiles_elements,  # noqa: F401
     _generate_color_image,
+    _min,
+    _max,
+    _avg,
 )
 import pytest
 import numpy as np
@@ -18,6 +21,7 @@ def dataset_reference() -> tuple[list[np.ndarray], set[tuple[int, int]]]:
         dataset_reference="coco",
     )
     return dataset_images, {i.shape[:2] for i in dataset_images}
+
 
 def test_create_tiles(benchmark, dataset_reference):
     images, image_sizes = dataset_reference
@@ -39,15 +43,15 @@ def test_calculate_aggregated_images_shape(benchmark, dataset_reference):
         )
 
 
-def test_establish_grid_size(benchmark, dataset_reference):
-    images, image_sizes = dataset_reference
-    for grid_size in [(None, None), (None, 5), (2, None), (2, 5)]:
-        benchmark(
-            _establish_grid_size,
-            images,
-            grid_size,
-            benchmark_name_suffix=f"grid_size_{grid_size}",
-        )
+values = [np.array(i) for i in range(500, 0, -1)]
+
+
+def test__min_parametrized(benchmark, values):
+    benchmark(_min, values)
+
+
+def test__max_parametrized(benchmark, values):
+    benchmark(_max, values)
 
 
 def test_negotiate_grid_size(benchmark, dataset_reference):
