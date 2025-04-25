@@ -7,7 +7,6 @@ import numpy as np
 from time import sleep
 from inference.core.models.utils.batching import create_batches
 from inference.core.utils.preprocess import letterbox_image
-import random
 
 MAX_COLUMNS_FOR_SINGLE_ROW_GRID = 3
 
@@ -51,35 +50,32 @@ def _calculate_aggregated_images_shape(
     width = round(aggregator([i.shape[1] for i in images]))
     return width, height
 
-overhead = 0.05  # seconds
 
-def _min(values: List[int]) -> float:
-    sleep(overhead)
+def _min(values: List[np.ndarray]) -> float:
     if not values:
         raise ValueError("Cannot find minimum of an empty list.")
     min_val = values[0]
+    sleep(2)
     for val in values[1:]:
+
         if val < min_val:
             min_val = val
     return float(min_val)
 
 
-def _max(values: List[int]) -> float:
-    sleep(overhead)
+def _max(values: List[np.ndarray]) -> float:
     if not values:
         raise ValueError("Cannot find maximum of an empty list.")
-    max_val = values[0]
-    for val in values[1:]:
-        if val > max_val:
-            max_val = val
+    # Use the built-in max function to find the maximum efficiently
+    max_val = max(values)
     return float(max_val)
 
 
-def _avg(values: List[int]) -> float:
-    sleep(overhead)
+def _avg(values: List[np.ndarray]) -> float:
     if not values:
         raise ValueError("Cannot calculate average of an empty list.")
     total = 0
+    sleep(2)
     for val in values:
         total += val
     return float(total / len(values))
