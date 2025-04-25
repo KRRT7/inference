@@ -51,7 +51,7 @@ def _calculate_aggregated_images_shape(
     return width, height
 
 
-def _min(values: List[int]) -> float:
+def _min(values: List[np.ndarray]) -> float:
     """Calculates the minimum value in a list using a basic loop."""
     if not values:
         raise ValueError("Cannot find minimum of an empty list.")
@@ -62,7 +62,7 @@ def _min(values: List[int]) -> float:
     return float(min_val)
 
 
-def _max(values: List[int]) -> float:
+def _max(values: List[np.ndarray]) -> float:
     """Calculates the maximum value in a list using a basic loop."""
     if not values:
         raise ValueError("Cannot find maximum of an empty list.")
@@ -73,7 +73,7 @@ def _max(values: List[int]) -> float:
     return float(max_val)
 
 
-def _avg(values: List[int]) -> float:
+def _avg(values: List[np.ndarray]) -> float:
     """Calculates the average value in a list using basic sum and len."""
     if not values:
         raise ValueError("Cannot calculate average of an empty list.")
