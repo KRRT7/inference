@@ -9,13 +9,10 @@ from inference.core.utils.image_utils import (
     load_image_from_numpy_object,
     validate_numpy_image,
     load_image_from_encoded_bytes,
-    convert_gray_image_to_bgr,  # noqa: F401
     xyxy_to_xywh,
     encode_image_to_jpeg_bytes,
 )
 from inference_cli.lib.benchmark.dataset import (
-    load_dataset_images,
-    download_image,
     PREDEFINED_DATASETS,
 )
 import requests
@@ -47,27 +44,19 @@ def numpy_image() -> np.ndarray:
     return numpy_image
 
 
-def test_prepare_image_to_registration(benchmark, images):
+@pytest.mark.parametrize("input_type", ["b64_string", "image_bytes", "image_IO_buffer"])
+def test_prepare_image_to_registration(benchmark, images, input_type):
     b64_string, image_bytes, image_IO_buffer, numpy_image_str = images
-    # uses load_image_base64
+    input_map = {
+        "b64_string": b64_string,
+        "image_bytes": image_bytes,
+        "image_IO_buffer": image_IO_buffer,
+        # "numpy_image_str": numpy_image_str,  # Uncomment when implemented
+    }
     benchmark(
         attempt_loading_image_from_string,
-        b64_string,
-        benchmark_name_suffix="b64_string",
+        input_map[input_type],
     )
-    # uses load_image_from_encoded_bytes
-    benchmark(
-        attempt_loading_image_from_string,
-        image_bytes,
-        benchmark_name_suffix="image_bytes",
-    )
-    # uses load_image_from_buffer
-    benchmark(
-        attempt_loading_image_from_string,
-        image_IO_buffer,
-        benchmark_name_suffix="image_IO_buffer",
-    )
-    # todo: add numpy_image_str to the test
 
 
 def test_load_image_from_numpy_object(benchmark, numpy_image):

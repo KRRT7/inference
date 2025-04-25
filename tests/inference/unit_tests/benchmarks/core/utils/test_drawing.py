@@ -7,9 +7,11 @@ from inference.core.utils.drawing import (
     _generate_tiles,  # noqa: F401
     _merge_tiles_elements,  # noqa: F401
     _generate_color_image,
+    _min,
 )
 import pytest
 import numpy as np
+import random
 
 
 @pytest.fixture
@@ -18,6 +20,7 @@ def dataset_reference() -> tuple[list[np.ndarray], set[tuple[int, int]]]:
         dataset_reference="coco",
     )
     return dataset_images, {i.shape[:2] for i in dataset_images}
+
 
 def test_create_tiles(benchmark, dataset_reference):
     images, image_sizes = dataset_reference
@@ -28,26 +31,38 @@ def test_create_tiles(benchmark, dataset_reference):
     )
 
 
-def test_calculate_aggregated_images_shape(benchmark, dataset_reference):
+@pytest.mark.parametrize("mode", ["min", "max", "avg"])
+def test_calculate_aggregated_images_shape(benchmark, dataset_reference, mode):
     images, image_sizes = dataset_reference
-    for mode in ["min", "max", "avg"]:
-        benchmark(
-            _aggregate_images_shape,
-            images,
-            mode,
-            benchmark_name_suffix=f"mode_{mode}",
-        )
+    benchmark(
+        _aggregate_images_shape,
+        images,
+        mode,
+    )
 
 
-def test_establish_grid_size(benchmark, dataset_reference):
+def test_min(benchmark):
+    values = [random.randint(1, 1000000) for _ in range(10_000_000)]
+    values[-1] = -9999999
+    benchmark(_min, values)
+
+
+@pytest.mark.parametrize(
+    "grid_size",
+    [
+        (None, None),
+        (None, 5),
+        (2, None),
+        (2, 5),
+    ],
+)
+def test_establish_grid_size(benchmark, dataset_reference, grid_size):
     images, image_sizes = dataset_reference
-    for grid_size in [(None, None), (None, 5), (2, None), (2, 5)]:
-        benchmark(
-            _establish_grid_size,
-            images,
-            grid_size,
-            benchmark_name_suffix=f"grid_size_{grid_size}",
-        )
+    benchmark(
+        _establish_grid_size,
+        images,
+        grid_size,
+    )
 
 
 def test_negotiate_grid_size(benchmark, dataset_reference):
@@ -58,43 +73,31 @@ def test_negotiate_grid_size(benchmark, dataset_reference):
     )
 
 
-# the below two benchmarks are commented out because they rely on implementation details, i'll let roboflow decide how to handle them
-# def test_generate_tiles(benchmark, dataset_reference):
+# # the below two benchmarks are commented out because they rely on implementation details, i'll let roboflow decide how to handle them
+# @pytest.mark.parametrize("grid_size", [(2, 5), (3, 4)])
+# @pytest.mark.parametrize("tile_size", [(100, 100), (200, 200)])
+# @pytest.mark.parametrize("tile_padding_color", [(0, 0, 0), (255, 255, 255)])
+# @pytest.mark.parametrize("tile_margin", [0, 5])
+# @pytest.mark.parametrize("tile_margin_color", [(0, 0, 0), (255, 255, 255)])
+# def test_generate_tiles(
+#     benchmark,
+#     dataset_reference,
+#     grid_size,
+#     tile_size,
+#     tile_padding_color,
+#     tile_margin,
+#     tile_margin_color,
+# ):
 #     images, image_sizes = dataset_reference
-#     grid_sizes = [(2, 5), (3, 4)]
-#     tile_sizes = [(100, 100), (200, 200)]
-#     tile_padding_colors = [(0, 0, 0), (255, 255, 255)]
-#     tile_margins = [0, 5]
-#     tile_margin_colors = [(0, 0, 0), (255, 255, 255)]
-#     param_combinations = itertools.product(
-#         grid_sizes,
-#         tile_sizes,
-#         tile_padding_colors,
-#         tile_margins,
-#         tile_margin_colors,
-#     )
-
-#     for (
+#     benchmark(
+#         _generate_tiles,
+#         images,
 #         grid_size,
 #         tile_size,
 #         tile_padding_color,
 #         tile_margin,
 #         tile_margin_color,
-#     ) in param_combinations:
-#         benchmark(
-#             _generate_tiles,
-#             images,
-#             grid_size,
-#             tile_size,
-#             tile_padding_color,
-#             tile_margin,
-#             tile_margin_color,
-#             benchmark_name_suffix=(
-#                 f"grid_size_{grid_size}_tile_size_{tile_size}_"
-#                 f"tile_padding_color_{tile_padding_color}_"
-#                 f"tile_margin_{tile_margin}_tile_margin_color_{tile_margin_color}"
-#             ),
-#         )
+#     )
 
 
 # def test_merge_tiles_elements(benchmark):
