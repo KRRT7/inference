@@ -51,22 +51,53 @@ def _calculate_aggregated_images_shape(
     return width, height
 
 
+def _min(values: List[int]) -> float:
+    """Calculates the minimum value in a list using a basic loop."""
+    if not values:
+        raise ValueError("Cannot find minimum of an empty list.")
+    min_val = values[0]
+    for val in values[1:]:
+        if val < min_val:
+            min_val = val
+    return float(min_val)
+
+
+def _max(values: List[int]) -> float:
+    """Calculates the maximum value in a list using a basic loop."""
+    if not values:
+        raise ValueError("Cannot find maximum of an empty list.")
+    max_val = values[0]
+    for val in values[1:]:
+        if val > max_val:
+            max_val = val
+    return float(max_val)
+
+
+def _avg(values: List[int]) -> float:
+    """Calculates the average value in a list using basic sum and len."""
+    if not values:
+        raise ValueError("Cannot calculate average of an empty list.")
+    total = 0
+    for val in values:
+        total += val
+    return float(total / len(values))
+
+
 SHAPE_AGGREGATION_FUN = {
-    "min": partial(_calculate_aggregated_images_shape, aggregator=np.min),
-    "max": partial(_calculate_aggregated_images_shape, aggregator=np.max),
-    "avg": partial(_calculate_aggregated_images_shape, aggregator=np.average),
+    "min": partial(_calculate_aggregated_images_shape, aggregator=_min),
+    "max": partial(_calculate_aggregated_images_shape, aggregator=_max),
+    "avg": partial(_calculate_aggregated_images_shape, aggregator=_avg),
 }
 
 
 def _aggregate_images_shape(
-    images: List[np.ndarray], mode: Literal["min", "max", "avg"]
+    images: List[np.ndarray], mode: Literal["min", "max", "avg"] = "avg"
 ) -> Tuple[int, int]:
     if mode not in SHAPE_AGGREGATION_FUN:
         raise ValueError(
-            f"Could not aggregate images shape - provided unknown mode: {mode}. "
-            f"Supported modes: {list(SHAPE_AGGREGATION_FUN.keys())}."
+            f"Invalid mode: {mode}. Choose from {list(SHAPE_AGGREGATION_FUN.keys())}."
         )
-    return SHAPE_AGGREGATION_FUN[mode](images)
+    return SHAPE_AGGREGATION_FUN[mode](images=images)
 
 
 def _establish_grid_size(
