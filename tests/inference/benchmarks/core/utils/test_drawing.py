@@ -46,12 +46,15 @@ def test_calculate_aggregated_images_shape(benchmark, dataset_reference):
 values = [np.array(i) for i in range(500, 0, -1)]
 
 
-def test__min_parametrized(benchmark, values):
+def test__min(benchmark, values):
     benchmark(_min, values)
 
 
-def test__max_parametrized(benchmark, values):
+def test__max(benchmark, values):
     benchmark(_max, values)
+
+def test__avg(benchmark, values):
+    benchmark(_avg, values)
 
 
 def test_negotiate_grid_size(benchmark, dataset_reference):
