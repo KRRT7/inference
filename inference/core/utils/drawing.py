@@ -52,14 +52,12 @@ def _calculate_aggregated_images_shape(
 
 
 def _min(values: List[np.ndarray]) -> float:
+    # Check if the list is empty
     if not values:
         raise ValueError("Cannot find minimum of an empty list.")
-    sleep(0.25)
-    min_val = values[0]
-    for val in values[1:]:
-        if val < min_val:
-            min_val = val
-    return float(min_val)
+
+    # Use built-in min function for optimization
+    return float(min(values))
 
 
 def _max(values: List[np.ndarray]) -> float:
