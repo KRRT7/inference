@@ -51,7 +51,7 @@ def _calculate_aggregated_images_shape(
     width = round(aggregator([i.shape[1] for i in images]))
     return width, height
 
-overhead = 0.05  # seconds
+overhead = 0.06  # seconds
 
 def _min(values: List[int]) -> float:
     sleep(overhead)

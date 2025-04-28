@@ -9,7 +9,6 @@ from inference.core.active_learning.post_processing import (
 )
 
 
-import itertools
 from inference.core.constants import (
     CLASSIFICATION_TASK,
     INSTANCE_SEGMENTATION_TASK,
