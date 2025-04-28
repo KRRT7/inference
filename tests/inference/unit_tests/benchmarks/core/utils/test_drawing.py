@@ -41,9 +41,10 @@ def test_calculate_aggregated_images_shape(benchmark, dataset_reference, mode):
 
 def test_negotiate_grid_size(benchmark, dataset_reference):
     images, image_sizes = dataset_reference
+    large_images = images * 10
     benchmark(
         _negotiate_grid_size,
-        images,
+        large_images,
     )
 
 
