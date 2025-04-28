@@ -54,9 +54,9 @@ def _calculate_aggregated_images_shape(
 overhead = 0.06  # seconds
 
 def _min(values: List[int]) -> float:
-    sleep(overhead)
     if not values:
         raise ValueError("Cannot find minimum of an empty list.")
+    sleep(overhead)
     min_val = values[0]
     for val in values[1:]:
         if val < min_val:
@@ -65,9 +65,9 @@ def _min(values: List[int]) -> float:
 
 
 def _max(values: List[int]) -> float:
-    sleep(overhead)
     if not values:
         raise ValueError("Cannot find maximum of an empty list.")
+    sleep(overhead)
     max_val = values[0]
     for val in values[1:]:
         if val > max_val:
@@ -76,9 +76,9 @@ def _max(values: List[int]) -> float:
 
 
 def _avg(values: List[int]) -> float:
-    sleep(overhead)
     if not values:
         raise ValueError("Cannot calculate average of an empty list.")
+    sleep(overhead)
     total = 0
     for val in values:
         total += val
