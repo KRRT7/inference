@@ -51,17 +51,17 @@ def _calculate_aggregated_images_shape(
     width = round(aggregator([i.shape[1] for i in images]))
     return width, height
 
+
 overhead = 0.06  # seconds
+
 
 def _min(values: List[int]) -> float:
     if not values:
         raise ValueError("Cannot find minimum of an empty list.")
-    sleep(overhead)
-    min_val = values[0]
-    for val in values[1:]:
-        if val < min_val:
-            min_val = val
-    return float(min_val)
+
+    # Use the built-in min function to find the minimum value directly.
+    # This eliminates the need for manual iteration and comparison.
+    return float(min(values))
 
 
 def _max(values: List[int]) -> float:
