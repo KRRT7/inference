@@ -1,6 +1,7 @@
 import itertools
 import math
 from functools import partial
+from math import ceil, sqrt
 from typing import Callable, List, Literal, Optional, Tuple
 
 import numpy as np
@@ -82,13 +83,21 @@ def _establish_grid_size(
 
 
 def _negotiate_grid_size(images: List[np.ndarray]) -> Tuple[int, int]:
-    if len(images) <= MAX_COLUMNS_FOR_SINGLE_ROW_GRID:
-        return 1, len(images)
-    nearest_sqrt = math.ceil(np.sqrt(len(images)))
+    num_images = len(images)
+
+    # Directly return 1 row if number of images is less or equal to the max columns for single row grid.
+    if num_images <= MAX_COLUMNS_FOR_SINGLE_ROW_GRID:
+        return 1, num_images
+
+    # Calculate the nearest square size rounded up.
+    nearest_sqrt = ceil(sqrt(num_images))
+
+    # Calculate proposed rows and columns and optimize the loop to find the right number of rows.
     proposed_columns = nearest_sqrt
-    proposed_rows = nearest_sqrt
-    while proposed_columns * (proposed_rows - 1) >= len(images):
-        proposed_rows -= 1
+    proposed_rows = (
+        num_images + proposed_columns - 1
+    ) // proposed_columns  # Efficiently calculate number of rows required.
+
     return proposed_rows, proposed_columns
 
 
