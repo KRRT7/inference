@@ -82,13 +82,16 @@ def _establish_grid_size(
 
 
 def _negotiate_grid_size(images: List[np.ndarray]) -> Tuple[int, int]:
-    if len(images) <= MAX_COLUMNS_FOR_SINGLE_ROW_GRID:
-        return 1, len(images)
-    nearest_sqrt = math.ceil(np.sqrt(len(images)))
+    image_count = len(images)
+
+    if image_count <= MAX_COLUMNS_FOR_SINGLE_ROW_GRID:
+        return 1, image_count
+
+    # Optimized calculation of grid size
+    nearest_sqrt = math.ceil(math.sqrt(image_count))
     proposed_columns = nearest_sqrt
-    proposed_rows = nearest_sqrt
-    while proposed_columns * (proposed_rows - 1) >= len(images):
-        proposed_rows -= 1
+    proposed_rows = (image_count + nearest_sqrt - 1) // nearest_sqrt
+
     return proposed_rows, proposed_columns
 
 
