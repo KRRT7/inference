@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import Tuple
 
 import numpy as np
 
@@ -42,10 +42,15 @@ class YOLOv8InstanceSegmentation(InstanceSegmentationBaseOnnxRoboflowInferenceMo
         predictions, protos = run_session_via_iobinding(
             self.onnx_session, self.input_name, img_in
         )
-        predictions = predictions.transpose(0, 2, 1)
-        boxes = predictions[:, :, :4]
-        class_confs = predictions[:, :, 4:-32]
-        confs = np.expand_dims(np.max(class_confs, axis=2), axis=2)
-        masks = predictions[:, :, -32:]
-        predictions = np.concatenate([boxes, confs, class_confs, masks], axis=2)
-        return predictions, protos
+
+        # predictions has shape (batch, num_items, num_outputs).
+        # Transpose only if needed (batch, num_items, features).
+        pred = predictions.transpose(0, 2, 1)
+        boxes = pred[:, :, :4]
+        class_confs = pred[:, :, 4:-32]
+        # Use keepdims for expand_dims-like effect with less copying
+        confs = np.max(class_confs, axis=2, keepdims=True)
+        masks = pred[:, :, -32:]
+        # Faster memory layout for concatenate
+        out = np.concatenate((boxes, confs, class_confs, masks), axis=2)
+        return out, protos

@@ -30,54 +30,44 @@ def get_onnxruntime_execution_providers(value: str) -> List[str]:
 def run_session_via_iobinding(
     session: ort.InferenceSession, input_name: str, input_data: ImageMetaType
 ) -> List[np.ndarray]:
+    # Fast path for np.ndarray or list (typical inference entry)
     if isinstance(input_data, (np.ndarray, list)):
-        # skip the iobinding and just run the session
-        # we likely won't get any gains by pointing to the input data directly
-        predictions = session.run(None, {input_name: input_data})
-    elif "CUDAExecutionProvider" not in session.get_providers():
-        # no point in doing iobinding as the input must live on CPU anyway
-        input_data = (
-            input_data.cpu().numpy()
-        )  # since we must be a tensor but ONNX needs a numpy array
-        predictions = session.run(None, {input_name: input_data})
-    else:
-        # we live on GPU and we can use CUDA ONNX, so point to the input data directly
-        binding = session.io_binding()
+        return session.run(None, {input_name: input_data})
+    # If we don't have CUDA we must use a CPU copy
+    providers = session.get_providers()
+    if "CUDAExecutionProvider" not in providers:
+        return session.run(None, {input_name: input_data.cpu().numpy()})
 
-        predictions = []
-        dtype = None
-        for output in session.get_outputs():
-            # assemble numpy-based output buffers for the ONNX runtime to write to
-            if dtype is None:
-                dtype = np.float16 if "16" in output.type else np.float32
-            prediction = np.empty(output.shape, dtype=dtype)
-            binding.bind_output(
-                name=output.name,
-                device_type="cpu",
-                device_id=0,
-                element_type=dtype,
-                shape=output.shape,
-                buffer_ptr=prediction.ctypes.data,
-            )
-            predictions.append(prediction)
+    # CUDA I/O binding: direct memory access, less copying
+    binding = session.io_binding()
+    outputs = session.get_outputs()
+    dtype = np.float16 if any("16" in o.type for o in outputs) else np.float32
 
-        input_data = input_data.contiguous()
-        binding.bind_input(
-            name=input_name,
-            device_type=input_data.device.type,
-            device_id=(
-                input_data.device.index if input_data.device.index is not None else 0
-            ),
+    predictions = []
+    # Use pre-allocated numpy output buffers for ONNX to write into, speeds up large results
+    for output in outputs:
+        buf = np.empty(output.shape, dtype=dtype)
+        binding.bind_output(
+            name=output.name,
+            device_type="cpu",
+            device_id=0,
             element_type=dtype,
-            shape=input_data.shape,
-            buffer_ptr=input_data.data_ptr(),
+            shape=output.shape,
+            buffer_ptr=buf.ctypes.data,
         )
+        predictions.append(buf)
 
-        binding.synchronize_inputs()
-
-        session.run_with_iobinding(binding)
-
-        # convert the output buffers to float32 as we may run mixed precision inference in the future
-        predictions = [prediction.astype(np.float32) for prediction in predictions]
-
-    return predictions
+    tensor = input_data.contiguous()
+    device = tensor.device
+    binding.bind_input(
+        name=input_name,
+        device_type=device.type,
+        device_id=0 if device.index is None else device.index,
+        element_type=dtype,
+        shape=tensor.shape,
+        buffer_ptr=tensor.data_ptr(),
+    )
+    binding.synchronize_inputs()
+    session.run_with_iobinding(binding)
+    # Always return as float32 arrays for downstream ease
+    return [arr.astype(np.float32, copy=False) for arr in predictions]
