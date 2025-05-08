@@ -43,9 +43,15 @@ class YOLOv8InstanceSegmentation(InstanceSegmentationBaseOnnxRoboflowInferenceMo
             self.onnx_session, self.input_name, img_in
         )
         predictions = predictions.transpose(0, 2, 1)
+
+        # Slice once, use views to reduce temp arrays
         boxes = predictions[:, :, :4]
         class_confs = predictions[:, :, 4:-32]
-        confs = np.expand_dims(np.max(class_confs, axis=2), axis=2)
         masks = predictions[:, :, -32:]
-        predictions = np.concatenate([boxes, confs, class_confs, masks], axis=2)
+
+        # Compute confs without allocating full array: only max in axis 2 needed
+        confs = np.amax(class_confs, axis=2, keepdims=True)
+
+        # Final prediction concat as before
+        predictions = np.concatenate((boxes, confs, class_confs, masks), axis=2)
         return predictions, protos
