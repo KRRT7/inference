@@ -42,10 +42,16 @@ class YOLOv8InstanceSegmentation(InstanceSegmentationBaseOnnxRoboflowInferenceMo
         predictions, protos = run_session_via_iobinding(
             self.onnx_session, self.input_name, img_in
         )
-        predictions = predictions.transpose(0, 2, 1)
-        boxes = predictions[:, :, :4]
-        class_confs = predictions[:, :, 4:-32]
-        confs = np.expand_dims(np.max(class_confs, axis=2), axis=2)
-        masks = predictions[:, :, -32:]
-        predictions = np.concatenate([boxes, confs, class_confs, masks], axis=2)
+
+        # predictions expected shape: (batch, anchors, classes+boxes+masks)
+        pred = predictions  # save a variable lookup
+
+        # Efficient transposition and slicing
+        pred = pred.transpose(0, 2, 1)
+        boxes = pred[:, :, :4]
+        class_confs = pred[:, :, 4:-32]
+        confs = np.max(class_confs, axis=2, keepdims=True)  # already expands axis
+        masks = pred[:, :, -32:]
+        predictions = np.concatenate((boxes, confs, class_confs, masks), axis=2)
+
         return predictions, protos

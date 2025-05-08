@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, List, Union
 
 import numpy as np
 import onnxruntime as ort
+import torch
 
 if TYPE_CHECKING:
     import torch
@@ -30,54 +31,64 @@ def get_onnxruntime_execution_providers(value: str) -> List[str]:
 def run_session_via_iobinding(
     session: ort.InferenceSession, input_name: str, input_data: ImageMetaType
 ) -> List[np.ndarray]:
-    if isinstance(input_data, (np.ndarray, list)):
-        # skip the iobinding and just run the session
-        # we likely won't get any gains by pointing to the input data directly
-        predictions = session.run(None, {input_name: input_data})
-    elif "CUDAExecutionProvider" not in session.get_providers():
-        # no point in doing iobinding as the input must live on CPU anyway
-        input_data = (
-            input_data.cpu().numpy()
-        )  # since we must be a tensor but ONNX needs a numpy array
-        predictions = session.run(None, {input_name: input_data})
-    else:
-        # we live on GPU and we can use CUDA ONNX, so point to the input data directly
-        binding = session.io_binding()
+    """
+    Runs the ONNX session – will use IO binding for CUDA sessions and torch tensor input.
 
-        predictions = []
-        dtype = None
-        for output in session.get_outputs():
-            # assemble numpy-based output buffers for the ONNX runtime to write to
-            if dtype is None:
-                dtype = np.float16 if "16" in output.type else np.float32
-            prediction = np.empty(output.shape, dtype=dtype)
-            binding.bind_output(
-                name=output.name,
-                device_type="cpu",
-                device_id=0,
-                element_type=dtype,
-                shape=output.shape,
-                buffer_ptr=prediction.ctypes.data,
-            )
-            predictions.append(prediction)
+    Returns:
+        List of np.ndarray outputs from the session.
+    """
+    # Fast path for numpy or list input or non-CUDA session
+    if (
+        isinstance(input_data, (np.ndarray, list))
+        or "CUDAExecutionProvider" not in session.get_providers()
+    ):
+        if not isinstance(input_data, np.ndarray):
+            input_data = np.asarray(input_data)
+        # Covers both numpy input and the no-CUDA path.
+        return session.run(None, {input_name: input_data})
 
-        input_data = input_data.contiguous()
-        binding.bind_input(
-            name=input_name,
-            device_type=input_data.device.type,
-            device_id=(
-                input_data.device.index if input_data.device.index is not None else 0
-            ),
+    # Fetch the dtype once for all outputs.
+    outputs = session.get_outputs()
+    output_dtypes = []
+    output_shapes = []
+    for output in outputs:
+        # ONNX output.type always has a string like 'tensor(float16)' or 'tensor(float)'
+        if "16" in output.type:
+            output_dtypes.append(np.float16)
+        else:
+            output_dtypes.append(np.float32)
+        output_shapes.append(tuple(output.shape))
+
+    binding = session.io_binding()
+    predictions = []
+    # Prepare fast output arrays and bindings
+    for output, dtype, shape in zip(outputs, output_dtypes, output_shapes):
+        arr = np.empty(shape, dtype=dtype)
+        binding.bind_output(
+            name=output.name,
+            device_type="cpu",
+            device_id=0,
             element_type=dtype,
-            shape=input_data.shape,
-            buffer_ptr=input_data.data_ptr(),
+            shape=shape,
+            buffer_ptr=arr.ctypes.data,
         )
+        predictions.append(arr)
 
-        binding.synchronize_inputs()
+    # Ensure contiguous tensor and direct binding to input
+    input_tensor = input_data.contiguous()
+    device = input_tensor.device
+    dtype = input_tensor.dtype
+    binding.bind_input(
+        name=input_name,
+        device_type=device.type,
+        device_id=(device.index if device.index is not None else 0),
+        element_type=input_tensor.numpy().dtype,
+        shape=input_tensor.shape,
+        buffer_ptr=input_tensor.data_ptr(),
+    )
 
-        session.run_with_iobinding(binding)
+    binding.synchronize_inputs()
+    session.run_with_iobinding(binding)
 
-        # convert the output buffers to float32 as we may run mixed precision inference in the future
-        predictions = [prediction.astype(np.float32) for prediction in predictions]
-
-    return predictions
+    # Always cast outputs to float32 per comment/spec
+    return [arr.astype(np.float32, copy=False) for arr in predictions]
