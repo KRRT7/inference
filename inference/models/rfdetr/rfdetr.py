@@ -230,7 +230,7 @@ class RFDETRObjectDetection(ObjectDetectionBaseOnnxRoboflowInferenceModel):
         Returns:
             Tuple[np.ndarray]: NumPy array representing the predictions, including boxes, confidence scores, and class IDs.
         """
-        time.sleep(1)
+        # time.sleep(1)  # Removed for improved performance.
         predictions = run_session_via_iobinding(
             self.onnx_session, self.input_name, img_in
         )
