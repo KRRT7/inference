@@ -1,4 +1,5 @@
 import os
+import time
 from time import perf_counter
 from typing import Any, List, Tuple, Union
 
@@ -229,6 +230,7 @@ class RFDETRObjectDetection(ObjectDetectionBaseOnnxRoboflowInferenceModel):
         Returns:
             Tuple[np.ndarray]: NumPy array representing the predictions, including boxes, confidence scores, and class IDs.
         """
+        time.sleep(1)
         predictions = run_session_via_iobinding(
             self.onnx_session, self.input_name, img_in
         )
