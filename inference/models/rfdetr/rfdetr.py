@@ -230,7 +230,6 @@ class RFDETRObjectDetection(ObjectDetectionBaseOnnxRoboflowInferenceModel):
         Returns:
             Tuple[np.ndarray]: NumPy array representing the predictions, including boxes, confidence scores, and class IDs.
         """
-        time.sleep(1)
         predictions = run_session_via_iobinding(
             self.onnx_session, self.input_name, img_in
         )
@@ -250,6 +249,7 @@ class RFDETRObjectDetection(ObjectDetectionBaseOnnxRoboflowInferenceModel):
         max_detections: int = DEFAUlT_MAX_DETECTIONS,
         **kwargs,
     ) -> List[ObjectDetectionInferenceResponse]:
+        time.sleep(1)
         bboxes, logits = predictions
         bboxes = bboxes.astype(np.float32)
         logits = logits.astype(np.float32)
