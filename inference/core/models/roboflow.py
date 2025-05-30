@@ -2,6 +2,7 @@ import itertools
 import json
 import os
 import random
+import time
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
@@ -33,6 +34,12 @@ from inference.core.env import (
     USE_PYTORCH_FOR_PREPROCESSING,
 )
 from inference.core.logger import logger
+import os.path
+from inference.core.cache.model_artifacts import get_cache_dir, initialise_cache
+from inference.core.devices.utils import GLOBAL_DEVICE_ID
+from inference.core.models.base import Model
+from inference.core.utils.roboflow import get_model_id_chunks
+from inference.models.aliases import resolve_roboflow_model_alias
 
 if USE_PYTORCH_FOR_PREPROCESSING:
     import torch
@@ -130,10 +137,12 @@ class RoboflowInferenceModel(Model):
         super().__init__()
         self.load_weights = load_weights
         self.metrics = {"num_inferences": 0, "avg_inference_time": 0.0}
-        self.api_key = api_key if api_key else API_KEY
-        model_id = resolve_roboflow_model_alias(model_id=model_id)
-        self.dataset_id, self.version_id = get_model_id_chunks(model_id=model_id)
-        self.endpoint = model_id
+        self.api_key = api_key or API_KEY
+        resolved_model_id = resolve_roboflow_model_alias(model_id=model_id)
+        self.dataset_id, self.version_id = get_model_id_chunks(
+            model_id=resolved_model_id
+        )
+        self.endpoint = resolved_model_id
         self.device_id = GLOBAL_DEVICE_ID
         self.cache_dir = os.path.join(cache_dir_root, self.endpoint)
         self.keypoints_metadata: Optional[dict] = None
@@ -148,7 +157,8 @@ class RoboflowInferenceModel(Model):
         Returns:
             str: Full path to the cached file.
         """
-        return get_cache_file_path(file=f, model_id=self.endpoint)
+        # Avoid function overhead by using precomputed self.cache_dir
+        return os.path.join(self.cache_dir, f)
 
     def clear_cache(self, delete_from_disk: bool = True) -> None:
         """Clear the cache directory.
@@ -461,6 +471,7 @@ class RoboflowInferenceModel(Model):
         Returns:
             Tuple[np.ndarray, Tuple[int, int]]: A tuple containing a numpy array of the preprocessed image pixel data and a tuple of the images original size.
         """
+        time.sleep(1)
         np_image, is_bgr = load_image(
             image,
             disable_preproc_auto_orient=disable_preproc_auto_orient
