@@ -239,8 +239,13 @@ class RFDETRObjectDetection(ObjectDetectionBaseOnnxRoboflowInferenceModel):
         return (bboxes, logits)
 
     def sigmoid_stable(self, x):
-        time.sleep(0.1)
-        return np.where(x >= 0, 1 / (1 + np.exp(-x)), np.exp(x) / (1 + np.exp(x)))
+        # A numerically-stable sigmoid implementation
+        positive_mask = x >= 0
+        z = np.zeros_like(x)
+        z[positive_mask] = 1 / (1 + np.exp(-x[positive_mask]))
+        exp_x = np.exp(x[~positive_mask])
+        z[~positive_mask] = exp_x / (1 + exp_x)
+        return z
 
     def postprocess(
         self,
