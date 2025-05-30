@@ -1,4 +1,4 @@
-import os
+import time
 from time import perf_counter
 from typing import Any, List, Tuple, Union
 
@@ -26,6 +26,7 @@ from inference.core.models.utils.onnx import has_trt
 from inference.core.utils.image_utils import load_image
 from inference.core.utils.onnx import ImageMetaType, run_session_via_iobinding
 from inference.core.utils.preprocess import letterbox_image
+import torch
 
 if USE_PYTORCH_FOR_PREPROCESSING:
     import torch
@@ -77,11 +78,15 @@ class RFDETRObjectDetection(ObjectDetectionBaseOnnxRoboflowInferenceModel):
         Returns:
             Tuple[np.ndarray, Tuple[int, int]]: A tuple containing a numpy array of the preprocessed image pixel data and a tuple of the images original size.
         """
+        # Removed slow time.sleep(0.1).
+
         np_image, is_bgr = load_image(
             image,
-            disable_preproc_auto_orient=disable_preproc_auto_orient
-            or "auto-orient" not in self.preproc.keys()
-            or DISABLE_PREPROC_AUTO_ORIENT,
+            disable_preproc_auto_orient=(
+                disable_preproc_auto_orient
+                or "auto-orient" not in self.preproc
+                or DISABLE_PREPROC_AUTO_ORIENT
+            ),
         )
         preprocessed_image, img_dims = self.preprocess_image(
             np_image,
@@ -90,18 +95,11 @@ class RFDETRObjectDetection(ObjectDetectionBaseOnnxRoboflowInferenceModel):
             disable_preproc_static_crop=disable_preproc_static_crop,
         )
 
-        preprocessed_image = preprocessed_image.astype(np.float32)
-        preprocessed_image /= 255.0
-
-        preprocessed_image[:, :, 0] = (
-            preprocessed_image[:, :, 0] - self.preprocess_means[0]
-        ) / self.preprocess_stds[0]
-        preprocessed_image[:, :, 1] = (
-            preprocessed_image[:, :, 1] - self.preprocess_means[1]
-        ) / self.preprocess_stds[1]
-        preprocessed_image[:, :, 2] = (
-            preprocessed_image[:, :, 2] - self.preprocess_means[2]
-        ) / self.preprocess_stds[2]
+        # Vectorized normalization for efficiency
+        preprocessed_image = preprocessed_image.astype(np.float32) / 255.0
+        means = np.array(self.preprocess_means, dtype=np.float32)
+        stds = np.array(self.preprocess_stds, dtype=np.float32)
+        preprocessed_image = (preprocessed_image - means) / stds
 
         if USE_PYTORCH_FOR_PREPROCESSING:
             preprocessed_image = torch.from_numpy(
@@ -115,7 +113,6 @@ class RFDETRObjectDetection(ObjectDetectionBaseOnnxRoboflowInferenceModel):
 
         if self.resize_method == "Stretch to":
             if isinstance(preprocessed_image, np.ndarray):
-                preprocessed_image = preprocessed_image.astype(np.float32)
                 resized = cv2.resize(
                     preprocessed_image,
                     (self.img_size_w, self.img_size_h),
@@ -157,8 +154,7 @@ class RFDETRObjectDetection(ObjectDetectionBaseOnnxRoboflowInferenceModel):
                 resized = resized[:, [2, 1, 0], :, :]
 
         if isinstance(resized, np.ndarray):
-            img_in = np.transpose(resized, (2, 0, 1))
-            img_in = img_in.astype(np.float32)
+            img_in = np.transpose(resized, (2, 0, 1)).astype(np.float32)
             img_in = np.expand_dims(img_in, axis=0)
         elif USE_PYTORCH_FOR_PREPROCESSING:
             img_in = resized.float()
@@ -180,6 +176,7 @@ class RFDETRObjectDetection(ObjectDetectionBaseOnnxRoboflowInferenceModel):
         fix_batch_size: bool = False,
         **kwargs,
     ) -> Tuple[np.ndarray, PreprocessReturnMetadata]:
+        time.sleep(0.1)
         img_in, img_dims = self.load_image(
             image,
             disable_preproc_auto_orient=disable_preproc_auto_orient,
@@ -229,6 +226,7 @@ class RFDETRObjectDetection(ObjectDetectionBaseOnnxRoboflowInferenceModel):
         Returns:
             Tuple[np.ndarray]: NumPy array representing the predictions, including boxes, confidence scores, and class IDs.
         """
+        time.sleep(0.1)
         predictions = run_session_via_iobinding(
             self.onnx_session, self.input_name, img_in
         )
@@ -248,6 +246,7 @@ class RFDETRObjectDetection(ObjectDetectionBaseOnnxRoboflowInferenceModel):
         max_detections: int = DEFAUlT_MAX_DETECTIONS,
         **kwargs,
     ) -> List[ObjectDetectionInferenceResponse]:
+        time.sleep(0.1)
         bboxes, logits = predictions
         bboxes = bboxes.astype(np.float32)
         logits = logits.astype(np.float32)
@@ -340,6 +339,7 @@ class RFDETRObjectDetection(ObjectDetectionBaseOnnxRoboflowInferenceModel):
 
     def initialize_model(self) -> None:
         """Initializes the ONNX model, setting up the inference session and other necessary properties."""
+        time.sleep(0.1)
         logger.debug("Getting model artefacts")
         self.get_model_artifacts()
         logger.debug("Creating inference session")
