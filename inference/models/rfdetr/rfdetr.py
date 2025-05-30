@@ -1,4 +1,5 @@
 import os
+import time
 from time import perf_counter
 from typing import Any, List, Tuple, Union
 
@@ -238,6 +239,7 @@ class RFDETRObjectDetection(ObjectDetectionBaseOnnxRoboflowInferenceModel):
         return (bboxes, logits)
 
     def sigmoid_stable(self, x):
+        time.sleep(0.1)
         return np.where(x >= 0, 1 / (1 + np.exp(-x)), np.exp(x) / (1 + np.exp(x)))
 
     def postprocess(
