@@ -26,6 +26,7 @@ from inference.core.models.utils.onnx import has_trt
 from inference.core.utils.image_utils import load_image
 from inference.core.utils.onnx import ImageMetaType, run_session_via_iobinding
 from inference.core.utils.preprocess import letterbox_image
+from inference.core.entities.responses.inference import ObjectDetectionInferenceResponse
 
 if USE_PYTORCH_FOR_PREPROCESSING:
     import torch
@@ -243,8 +244,16 @@ class RFDETRObjectDetection(ObjectDetectionBaseOnnxRoboflowInferenceModel):
         return (bboxes, logits)
 
     def sigmoid_stable(self, x):
-        time.sleep(0.1)
-        return np.where(x >= 0, 1 / (1 + np.exp(-x)), np.exp(x) / (1 + np.exp(x)))
+        # Efficient and numerically stable sigmoid, vectorized, removed unnecessary sleep
+        # Implementation as before, without sleep
+        # (x >= 0): 1/(1+exp(-x)); else: exp(x)/(1+exp(x))
+        pos_mask = x >= 0
+        neg_mask = ~pos_mask
+        out = np.empty_like(x)
+        out[pos_mask] = 1.0 / (1.0 + np.exp(-x[pos_mask]))
+        exp_x = np.exp(x[neg_mask])
+        out[neg_mask] = exp_x / (1.0 + exp_x)
+        return out
 
     def postprocess(
         self,
@@ -254,10 +263,11 @@ class RFDETRObjectDetection(ObjectDetectionBaseOnnxRoboflowInferenceModel):
         max_detections: int = DEFAUlT_MAX_DETECTIONS,
         **kwargs,
     ) -> List[ObjectDetectionInferenceResponse]:
-        time.sleep(0.1)
+        # Removed artificial time.sleep(0.1), no effect on logic
+
         bboxes, logits = predictions
-        bboxes = bboxes.astype(np.float32)
-        logits = logits.astype(np.float32)
+        bboxes = bboxes.astype(np.float32, copy=False)
+        logits = logits.astype(np.float32, copy=False)
 
         batch_size, num_queries, num_classes = logits.shape
         logits_sigmoid = self.sigmoid_stable(logits)
@@ -269,25 +279,37 @@ class RFDETRObjectDetection(ObjectDetectionBaseOnnxRoboflowInferenceModel):
         for batch_idx in range(batch_size):
             orig_h, orig_w = img_dims[batch_idx]
 
+            # Reshape and get topk indices in a single efficient operation
             logits_flat = logits_sigmoid[batch_idx].reshape(-1)
-
-            sorted_indices = np.argsort(-logits_flat)[:max_detections]
-            topk_scores = logits_flat[sorted_indices]
+            topk_idx = np.argpartition(-logits_flat, max_detections - 1)[
+                :max_detections
+            ]  # More efficient than argsort
+            topk_scores = logits_flat[topk_idx]
 
             conf_mask = topk_scores > confidence
-            sorted_indices = sorted_indices[conf_mask]
-            topk_scores = topk_scores[conf_mask]
+            if not np.any(conf_mask):
+                processed_predictions.append(np.zeros((0, 7), dtype=np.float32))
+                continue
 
-            topk_boxes = sorted_indices // num_classes
-            topk_labels = sorted_indices % num_classes
+            selected_idx = topk_idx[conf_mask]
+            topk_scores = topk_scores[conf_mask]
+            topk_boxes = selected_idx // num_classes
+            topk_labels = selected_idx % num_classes
 
             if self.is_one_indexed:
                 class_filter_mask = topk_labels != self.background_class_index
+                # Only apply correction and filtering if there are non-bg classes left
+                if np.any(class_filter_mask):
+                    topk_labels_fixed = topk_labels.copy()
+                    to_decrement = topk_labels_fixed > self.background_class_index
+                    topk_labels_fixed[to_decrement] -= 1
 
-                topk_labels[topk_labels > self.background_class_index] -= 1
-                topk_scores = topk_scores[class_filter_mask]
-                topk_labels = topk_labels[class_filter_mask]
-                topk_boxes = topk_boxes[class_filter_mask]
+                    topk_scores = topk_scores[class_filter_mask]
+                    topk_labels = topk_labels_fixed[class_filter_mask]
+                    topk_boxes = topk_boxes[class_filter_mask]
+                else:
+                    processed_predictions.append(np.zeros((0, 7), dtype=np.float32))
+                    continue
 
             selected_boxes = bboxes[batch_idx, topk_boxes]
 
@@ -302,7 +324,6 @@ class RFDETRObjectDetection(ObjectDetectionBaseOnnxRoboflowInferenceModel):
                 boxes_xyxy *= scale_fct
             else:
                 input_h, input_w = self.img_size_h, self.img_size_w
-
                 scale = min(input_w / orig_w, input_h / orig_h)
                 scaled_w = int(orig_w * scale)
                 scaled_h = int(orig_h * scale)
@@ -314,26 +335,24 @@ class RFDETRObjectDetection(ObjectDetectionBaseOnnxRoboflowInferenceModel):
                     [input_w, input_h, input_w, input_h], dtype=np.float32
                 )
 
-                boxes_input[:, 0] -= pad_x
-                boxes_input[:, 1] -= pad_y
-                boxes_input[:, 2] -= pad_x
-                boxes_input[:, 3] -= pad_y
+                boxes_input[:, [0, 2]] -= pad_x
+                boxes_input[:, [1, 3]] -= pad_y
 
                 boxes_xyxy = boxes_input / scale
 
-            boxes_xyxy[:, 0] = np.clip(boxes_xyxy[:, 0], 0, orig_w)
-            boxes_xyxy[:, 1] = np.clip(boxes_xyxy[:, 1], 0, orig_h)
-            boxes_xyxy[:, 2] = np.clip(boxes_xyxy[:, 2], 0, orig_w)
-            boxes_xyxy[:, 3] = np.clip(boxes_xyxy[:, 3], 0, orig_h)
+            # Vectorized np.clip for all coordinates simultaneously
+            np.clip(boxes_xyxy[:, 0], 0, orig_w, out=boxes_xyxy[:, 0])
+            np.clip(boxes_xyxy[:, 1], 0, orig_h, out=boxes_xyxy[:, 1])
+            np.clip(boxes_xyxy[:, 2], 0, orig_w, out=boxes_xyxy[:, 2])
+            np.clip(boxes_xyxy[:, 3], 0, orig_h, out=boxes_xyxy[:, 3])
 
-            batch_predictions = np.column_stack(
-                (
-                    boxes_xyxy,
-                    topk_scores,
-                    np.zeros((len(topk_scores), 1), dtype=np.float32),
-                    topk_labels,
-                )
-            )
+            # Avoid unnecessary zeros allocation and stacking when no boxes
+            num_preds = len(topk_scores)
+            batch_predictions = np.empty((num_preds, 7), dtype=np.float32)
+            batch_predictions[:, 0:4] = boxes_xyxy
+            batch_predictions[:, 4] = topk_scores
+            batch_predictions[:, 5] = 0  # np.zeros, always 0
+            batch_predictions[:, 6] = topk_labels
 
             processed_predictions.append(batch_predictions)
 
