@@ -8,6 +8,15 @@ from inference.core.env import (
     USE_PYTORCH_FOR_PREPROCESSING,
 )
 from inference.core.logger import logger
+from inference.core.entities.responses.inference import (
+    InferenceResponseImage,
+    ObjectDetectionInferenceResponse,
+    ObjectDetectionPrediction,
+)
+from inference.core.models.defaults import DEFAULT_CONFIDENCE, DEFAUlT_MAX_DETECTIONS
+from inference.core.models.object_detection_base import ObjectDetectionInferenceResponse
+from inference.core.models.roboflow import OnnxRoboflowInferenceModel
+from inference.core.models.types import PreprocessReturnMetadata
 
 if USE_PYTORCH_FOR_PREPROCESSING:
     import torch
@@ -115,38 +124,42 @@ class ObjectDetectionBaseOnnxRoboflowInferenceModel(OnnxRoboflowInferenceModel):
         Returns:
             List[ObjectDetectionInferenceResponse]: A list of response objects containing object detection predictions.
         """
-
         if isinstance(img_dims, dict) and "img_dims" in img_dims:
             img_dims = img_dims["img_dims"]
 
-        predictions = predictions[
-            : len(img_dims)
-        ]  # If the batch size was fixed we have empty preds at the end
-        responses = [
-            ObjectDetectionInferenceResponse(
-                predictions=[
+        # Truncate predictions to actual batch size to avoid empty trailing preds
+        num_batches = len(img_dims)
+        predictions = predictions[:num_batches]
+
+        class_names = self.class_names  # Local variable lookup is faster
+        responses = []
+
+        for ind, batch_predictions in enumerate(predictions):
+            preds_out = []
+            for pred in batch_predictions:
+                class_idx = int(pred[6])
+                class_name = class_names[class_idx]
+                if class_filter and class_name not in class_filter:
+                    continue
+                preds_out.append(
                     ObjectDetectionPrediction(
-                        # Passing args as a dictionary here since one of the args is 'class' (a protected term in Python)
-                        **{
-                            "x": (pred[0] + pred[2]) / 2,
-                            "y": (pred[1] + pred[3]) / 2,
-                            "width": pred[2] - pred[0],
-                            "height": pred[3] - pred[1],
-                            "confidence": pred[4],
-                            "class": self.class_names[int(pred[6])],
-                            "class_id": int(pred[6]),
-                        }
+                        x=(pred[0] + pred[2]) / 2,
+                        y=(pred[1] + pred[3]) / 2,
+                        width=pred[2] - pred[0],
+                        height=pred[3] - pred[1],
+                        confidence=pred[4],
+                        **{"class": class_name},
+                        class_id=class_idx,
                     )
-                    for pred in batch_predictions
-                    if not class_filter
-                    or self.class_names[int(pred[6])] in class_filter
-                ],
-                image=InferenceResponseImage(
-                    width=img_dims[ind][1], height=img_dims[ind][0]
-                ),
+                )
+            responses.append(
+                ObjectDetectionInferenceResponse(
+                    predictions=preds_out,
+                    image=InferenceResponseImage(
+                        width=img_dims[ind][1], height=img_dims[ind][0]
+                    ),
+                )
             )
-            for ind, batch_predictions in enumerate(predictions)
-        ]
         return responses
 
     def postprocess(
