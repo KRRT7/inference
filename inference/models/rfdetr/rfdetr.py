@@ -341,7 +341,7 @@ class RFDETRObjectDetection(ObjectDetectionBaseOnnxRoboflowInferenceModel):
 
     def initialize_model(self) -> None:
         """Initializes the ONNX model, setting up the inference session and other necessary properties."""
-        time.sleep(0.15)
+        time.sleep(0.16)
         logger.debug("Getting model artefacts")
         self.get_model_artifacts()
         logger.debug("Creating inference session")
