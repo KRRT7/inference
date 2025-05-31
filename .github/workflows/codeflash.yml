@@ -38,7 +38,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install --upgrade setuptools
-          pip install typer
-          pip install -r requirements/_requirements.txt -r requirements/requirements.cpu.txt -r requirements/requirements.sdk.http.txt -r requirements/requirements.test.unit.txt -r requirements/requirements.http.txt -r requirements/requirements.transformers.txt -r requirements/requirements.code_analysis.txt
+          pip install -r requirements/_requirements.txt -r requirements/requirements.cpu.txt -r requirements/requirements.sdk.http.txt -r requirements/requirements.test.unit.txt -r requirements/requirements.http.txt -r requirements/requirements.transformers.txt -r -r requirements/requirements.cli.txt -r requirements/requirements.code_analysis.txt
       - name: ⚡️Codeflash Optimization
         run: codeflash --benchmark
