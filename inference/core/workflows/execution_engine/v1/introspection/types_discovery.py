@@ -18,8 +18,13 @@ def discover_kinds_typing_hints(kinds_names: Set[str]) -> Dict[str, str]:
 
 
 def discover_kinds_schemas(kinds_names: Set[str]) -> Dict[str, Union[dict, List[dict]]]:
-    return {
-        name: schema
-        for name, schema in KIND_TO_SCHEMA_REGISTER.items()
-        if name in kinds_names
-    }
+    kinds_to_schema = {}
+    # Since names are unique, use set intersection for fast lookup
+    present_kinds = (
+        kinds_names & KIND_TO_SCHEMA_REGISTER.keys()
+        if not isinstance(KIND_TO_SCHEMA_REGISTER, dict)
+        else kinds_names & set(KIND_TO_SCHEMA_REGISTER)
+    )
+    for name in present_kinds:
+        kinds_to_schema[name] = KIND_TO_SCHEMA_REGISTER[name]
+    return kinds_to_schema
